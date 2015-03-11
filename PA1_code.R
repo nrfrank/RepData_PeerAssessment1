@@ -50,3 +50,88 @@ h <- {ggplot(dailyStepTotals, aes(x = totalSteps)) +
 png(file = "stepTotalHist.png")
 print(h)
 dev.off()
+
+# Calculate the mean and median.
+print("Mean Steps Per Day: ")
+print(mean(dailyStepTotals$totalSteps))
+print("Median Steps Per Day: ")
+print(median(dailyStepTotals$totalSteps))
+
+# Make a time series plot of the average steps taken by interval.
+intervalMeans <- summarise(group_by(activityData, interval),
+                           intMean = mean(steps, na.rm = TRUE))
+t <- {ggplot(intervalMeans, aes(x = interval, y = intMean)) + 
+          geom_line() +
+          xlab("Interval") +
+          ylab("Average Number of Steps") +
+          ggtitle("Average Number of Steps by Daily Interval")
+}
+
+# Open png graphics device, print out graphic, and close device.
+png(file = "intervalAverages.png")
+print(t)
+dev.off()
+
+# Print out the interval number with the maximum number of steps.
+print("Maximum average number of steps taken during interval: ")
+print(select(filter(intervalMeans, intMean == max(intMean)), interval))
+
+# Count the number of rows with NAs.
+print("Number of rows with NAs: ")
+print(length(which(is.na(activityData$steps))))
+
+# Fill in the NA values with the average for that interval.
+imputedActivityData <- activityData
+naRows = which(is.na(imputedActivityData$steps))
+for (i in seq_along(naRows)) {
+    imputedActivityData[naRows[i], 'steps'] =
+        intervalMeans[intervalMeans$interval == activityData[naRows[i], 'interval'], 'intMean']
+}
+
+# Create a histogram and determine mean and median of total steps per day for
+# the imputed activity data set.
+imputedDailyStepTotals <- summarise(group_by(imputedActivityData, date),
+                             totalSteps = sum(steps))
+
+bwI <- 2 * IQR(imputedDailyStepTotals$totalSteps) / length(imputedDailyStepTotals$totalSteps)^(1/3)
+
+hI <- {ggplot(imputedDailyStepTotals, aes(x = totalSteps)) +
+          geom_histogram(aes(y=..density..), binwidth = bwI, color = 'black', 
+                         fill = 'slateblue', alpha = .75) +
+          geom_density(alpha=.35, fill="firebrick") +
+          xlab("Total Steps") +
+          ggtitle("Histogram of Daily Step Totals with NAs Imputed to Interval Mean")
+}
+
+# Open png graphics device, print out graphic, and close device.
+png(file = "imputedStepTotalHist.png")
+print(hI)
+dev.off()
+
+# Calculate the mean and median.
+print("The mean and median for the activity data with NAs imputed to the interval mean are: ")
+print(mean(imputedDailyStepTotals$totalSteps))
+print(median(imputedDailyStepTotals$totalSteps))
+
+# Determine days of week (i.e. if a weekday or weekend) for dates in imputed data set.
+weekendRows <- which(weekdays(imputedActivityData$date) %in% c("Saturday", "Sunday"))
+imputedActivityData <- mutate(imputedActivityData,
+                              dayType = factor(x = "weekday", levels = c("weekday", "weekend")))
+imputedActivityData[weekendRows, 'dayType'] <- factor(x = "weekend", levels = c("weekday", "weekend"))
+
+# Create panel (facet) plot of average steps in an interval for weekdays and weekends.
+# Make a time series plot of the average steps taken by interval.
+imputedIntervalMeans <- summarise(group_by(imputedActivityData, dayType, interval),
+                           intMean = mean(steps))
+tI <- {ggplot(imputedIntervalMeans, aes(x = interval, y = intMean)) + 
+          geom_line() +
+          facet_grid(dayType ~ .) +
+          xlab("Interval") +
+          ylab("Average Number of Steps") +
+          ggtitle("Average Number of Steps by Daily Interval")
+}
+
+# Open png graphics device, print out graphic, and close device.
+png(file = "imputedIntervalAverages.png")
+print(tI)
+dev.off()
