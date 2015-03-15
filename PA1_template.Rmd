@@ -16,7 +16,7 @@ upon how it was extracted. We can check for any of these situations using `if` a
 statements and process accordingly. Since the GitHub repository for this assignment
 contains the zipped data we shouldn't need to look anywhere else.
 
-```{r}
+```{r readData}
 if (exists("rawData")) {
     print("Raw activity data already loaded.")
 } else if (file.exists("activity.csv")) {
@@ -36,7 +36,7 @@ if (exists("rawData")) {
 
 2. Next we will copy the raw data set over to the `activityData` data frame and discard of the original raw data. We also transform the `date` column to type `POSIXct` to make working with it easier. Finally, in order to avoid strange gaps in the intervals, which are meant to represent five minute time periods, we will convert them from integers to datetime objects. To do so we use the `sprintf()` function to format all the intervals as a 4 digit integer and then use `strptime()` to convert the result to a datetime class. This can be converted explicitly to type POSIXct using the `as.POSIXct()` function.
 
-```{r}
+```{r cleanData}
 activityData <- rawData
 activityData$date <- as.POSIXct(strptime(rawData$date, "%Y-%m-%d"))
 intervalTime <- strptime(sprintf("%04d", activityData$interval), "%H%M")
@@ -51,7 +51,7 @@ the data frame by date and then sum the number of steps for each date using the
 `group_by()` and `summarise()` statements in chained succession. The result of
 these operations is saved in a data frame called `dailyStepTotals`. Furthermore, in order to avoid skewing the histogram toward zero, a result of using `na.rm = TRUE` in the `sum()` function, we will compute the daily step totals without removing the `NAs` and then remove those rows afterwards. One issue with this could be that we would then skew the histogram by removing too many days from the summary. Since the summary is being performed on a data frame grouped by date, if there are many days with missing values then there will be many days without sums computed. This turns out not to be the case and in fact the only days on which there are missing values appear to consist entirely of missing values. I will verify this claim a bit later when we investigate the missing values further.
 
-```{r}
+```{r calcTotSteps}
 require(dplyr)
 dailyStepTotals <- group_by(activityData, date) %>%
     summarise(totalSteps = sum(steps))
@@ -60,7 +60,7 @@ dailyStepTotals <- dailyStepTotals[which(!is.na(dailyStepTotals$totalSteps)), ]
 
 2. We can then view a histogram of the total number of steps by day using `ggplot2`. Here we make use of the [Freedman-Diaconis](http://en.wikipedia.org/wiki/Freedman%E2%80%93Diaconis_rule) rule to determine the proper bin width and overlay the histogram with a smoothed kernel density estimate.
 
-```{r}
+```{r histTotSteps}
 require(ggplot2)
 bw <- 2 * IQR(dailyStepTotals$totalSteps) / length(dailyStepTotals$totalSteps)^(1/3)
 
@@ -77,7 +77,7 @@ print(h)
 3. Since we saved the tabulated total steps for each day in a column in the 
 `dailyStepTotals` data frame it is straightfoward to determine the mean and median.
 
-```{r}
+```{r meanTotSteps}
 mean(dailyStepTotals$totalSteps)
 
 median(dailyStepTotals$totalSteps)
@@ -88,14 +88,14 @@ median(dailyStepTotals$totalSteps)
 use a similar series of `dplyr` statements as above. We save this result in a
 data frame called `intervalMeans`. In this case we must remove the missing values by explicitly setting `na.rm = TRUE` when taking the mean because all of the intervals contain a missing value on at least one day.
 
-```{r}
+```{r intMeanSteps}
 intervalMeans <- group_by(activityData, intervalTime) %>%
     summarise(intMean = mean(steps, na.rm = TRUE))
 ```
 
 We can then produce a time series plot using `ggplot2` and `geom_line()`. We also make use of the `scales` package and the `scale_x_datetime()` function to properly display the time intervals on the x-axis.
 
-```{r}
+```{r timePlotIntSteps}
 require(scales)
 t <- {ggplot(intervalMeans, aes(x = intervalTime, y = intMean)) + 
           geom_line() +
@@ -111,7 +111,7 @@ print(t)
 2. The time series plot shows a clear spike in average number of steps taken
 around 08:00 or 09:00 AM. We can determine which daily interval has, on average, the maximum number of steps and identify this spike. Here we again make use of the `dplyr` package with the `filter()` and `select()` function to choose the row whose interval mean matches the maximum and the interval time column for that row, respectively. Note: the date shown here with the time interval is arbitrary. When converting the time intervals to `POSIXct` it chooses a date, defaulting to the current date when this statement is executed, since one is not given. For our purposes it is not a problem that all the time intervals, regardless of the actual date of the observation, are shown to have the same date.
 
-```{r}
+```{r intMaxSteps}
 filter(intervalMeans, intMean == max(intMean)) %>% select(intervalTime)
 ```
 
@@ -122,7 +122,7 @@ obtained so far and to work out a method for replacing them with real values, or
 
 1. First, we need to get an idea for the extent of missing values in the data set. In addition to reporting the total number of rows with missing values we report the unique dates upon which missing values occur.
 
-```{r}
+```{r missingVals}
 length(which(is.na(activityData$steps)))
 unique(activityData[which(is.na(activityData$steps)), ]$date)
 ```
@@ -134,14 +134,14 @@ I claimed earlier that removing the dates with missing values when taking the da
 
 3. With this strategy in mind we go about imputing the missing values. First we will make a copy of the data set and make a list of the the rows with missing values in them.
 
-```{r}
+```{r findMissing}
 imputedActivityData <- activityData
 naRows = which(is.na(imputedActivityData$steps))
 ```
 
 Then we can fill in the missing values with the mean number of steps for that interval taken from the `intervalMeans` data frame created earlier. We do so by looping through the rows in the copied data frame with missing values and assigning to the `steps` column the appropriate interval mean.
 
-```{r}
+```{r imputeMissing}
 for (i in seq_along(naRows)) {
     imputedActivityData[naRows[i], 'steps'] =
         intervalMeans[intervalMeans$intervalTime ==
@@ -152,7 +152,7 @@ for (i in seq_along(naRows)) {
 
 4. We can then make a histogram of the total number of steps taken per day for the imputed data set much as we did for the original data set.
 
-```{r}
+```{r IstepTotHist}
 imputedDailyStepTotals <- group_by(imputedActivityData, date) %>% 
     summarise(totalSteps = sum(steps))
 
@@ -171,7 +171,7 @@ print(hI)
 
 We can also report the `mean()` and `median()` using the newly created `imputedDailyStepTotals` data frame.
 
-```{r}
+```{r ImeanStepTot}
 mean(imputedDailyStepTotals$totalSteps)
 median(imputedDailyStepTotals$totalSteps)
 ```
@@ -180,12 +180,12 @@ There are two noticeable effects that result from imputing the missing values in
 
 ## Are there differences in activity patterns between weekdays and weekends?
 1. To answer this final question we must first create a factor variable in the imputed data set which indicates if a particular date is a weekday or weekend day. We can first create a list of all rows which have a date that falls on a Saturday or Sunday as follows.
-```{r}
+```{r findWeekends}
 weekendRows <- which(weekdays(imputedActivityData$date) %in%
                          c("Saturday", "Sunday"))
 ```
 Then we add a column to the data set using `mutate()` for the type of day. This is done in two steps: 1) add the factor variable with all values set to "weekday" and 2) subset the data frame on the weekend rows and set those to "weekend."
-```{r}
+```{r addDayType}
 imputedActivityData <- mutate(imputedActivityData, 
                               dayType = factor(x = "weekday", 
                                                levels = c("weekday", "weekend")))
@@ -194,7 +194,7 @@ imputedActivityData[weekendRows, 'dayType'] <- factor(x = "weekend",
 ```
 
 2. Finally, we create a panel plot comparing weekday and weekend activity levels, i.e. average number of steps taken, for each 5-minute interval to assess any differences in activity patterns between these two groups. 
-```{r}
+```{r ItimePlotDayType}
 imputedIntervalMeans <- group_by(imputedActivityData, dayType, intervalTime) %>% 
     summarise(intMean = mean(steps))
 tI <- {ggplot(imputedIntervalMeans, aes(x = intervalTime, y = intMean)) + 

@@ -99,7 +99,7 @@ h <- {ggplot(dailyStepTotals, aes(x = totalSteps)) +
 print(h)
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-4-1.png) 
+![](PA1_template_files/figure-html/histTotSteps-1.png) 
 
 3. Since we saved the tabulated total steps for each day in a column in the 
 `dailyStepTotals` data frame it is straightfoward to determine the mean and median.
@@ -155,7 +155,7 @@ t <- {ggplot(intervalMeans, aes(x = intervalTime, y = intMean)) +
 print(t)
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-7-1.png) 
+![](PA1_template_files/figure-html/timePlotIntSteps-1.png) 
 
 2. The time series plot shows a clear spike in average number of steps taken
 around 08:00 or 09:00 AM. We can determine which daily interval has, on average, the maximum number of steps and identify this spike. Here we again make use of the `dplyr` package with the `filter()` and `select()` function to choose the row whose interval mean matches the maximum and the interval time column for that row, respectively. Note: the date shown here with the time interval is arbitrary. When converting the time intervals to `POSIXct` it chooses a date, defaulting to the current date when this statement is executed, since one is not given. For our purposes it is not a problem that all the time intervals, regardless of the actual date of the observation, are shown to have the same date.
@@ -242,7 +242,7 @@ hI <- {ggplot(imputedDailyStepTotals, aes(x = totalSteps)) +
 print(hI)
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-12-1.png) 
+![](PA1_template_files/figure-html/IstepTotHist-1.png) 
 
 We can also report the `mean()` and `median()` using the newly created `imputedDailyStepTotals` data frame.
 
@@ -298,4 +298,4 @@ tI <- {ggplot(imputedIntervalMeans, aes(x = intervalTime, y = intMean)) +
 print(tI)
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-16-1.png) 
+![](PA1_template_files/figure-html/ItimePlotDayType-1.png) 
