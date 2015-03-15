@@ -24,12 +24,16 @@ if (exists("rawData")) {
 # Change date column to POSIXct format and discard rawData.
 activityData <- rawData
 activityData$date <- as.POSIXct(strptime(rawData$date, "%Y-%m-%d"))
-# rm('rawData')
+intervalTime <- strptime(sprintf("%04d", activityData$interval), "%H%M")
+activityData$intervalTime <- as.POSIXct(intervalTime, format = "%H:%M")
+rm('rawData')
+rm('intervalTime')
 
 # Calculate total number of steps taken each day. Using dplyr for this.
 require(dplyr)
 dailyStepTotals <- summarise(group_by(activityData, date),
-                        totalSteps = sum(steps, na.rm = TRUE))
+                        totalSteps = sum(steps, na.rm = FALSE))
+dailyStepTotals <- dailyStepTotals[which(!is.na(dailyStepTotals$totalSteps)), ]
 
 # Create a histogram of the step totals.
 # First, load in ggplot2 for plotting.
@@ -58,10 +62,13 @@ print("Median Steps Per Day: ")
 print(median(dailyStepTotals$totalSteps))
 
 # Make a time series plot of the average steps taken by interval.
-intervalMeans <- summarise(group_by(activityData, interval),
+require(scales)
+intervalMeans <- summarise(group_by(activityData, intervalTime),
                            intMean = mean(steps, na.rm = TRUE))
-t <- {ggplot(intervalMeans, aes(x = interval, y = intMean)) + 
+
+t <- {ggplot(intervalMeans, aes(x = intervalTime, y = intMean)) + 
           geom_line() +
+          scale_x_datetime(breaks = date_breaks("2 hours"), labels = date_format("%H:%M")) +
           xlab("Interval") +
           ylab("Average Number of Steps") +
           ggtitle("Average Number of Steps by Daily Interval")
@@ -74,7 +81,7 @@ dev.off()
 
 # Print out the interval number with the maximum number of steps.
 print("Maximum average number of steps taken during interval: ")
-print(select(filter(intervalMeans, intMean == max(intMean)), interval))
+print(select(filter(intervalMeans, intMean == max(intMean)), intervalTime))
 
 # Count the number of rows with NAs.
 print("Number of rows with NAs: ")
@@ -85,7 +92,8 @@ imputedActivityData <- activityData
 naRows = which(is.na(imputedActivityData$steps))
 for (i in seq_along(naRows)) {
     imputedActivityData[naRows[i], 'steps'] =
-        intervalMeans[intervalMeans$interval == activityData[naRows[i], 'interval'], 'intMean']
+        intervalMeans[intervalMeans$intervalTime ==
+                          imputedActivityData[naRows[i], 'intervalTime'], 'intMean']
 }
 
 # Create a histogram and determine mean and median of total steps per day for
@@ -121,10 +129,11 @@ imputedActivityData[weekendRows, 'dayType'] <- factor(x = "weekend", levels = c(
 
 # Create panel (facet) plot of average steps in an interval for weekdays and weekends.
 # Make a time series plot of the average steps taken by interval.
-imputedIntervalMeans <- summarise(group_by(imputedActivityData, dayType, interval),
+imputedIntervalMeans <- summarise(group_by(imputedActivityData, dayType, intervalTime),
                            intMean = mean(steps))
-tI <- {ggplot(imputedIntervalMeans, aes(x = interval, y = intMean)) + 
-          geom_line() +
+tI <- {ggplot(imputedIntervalMeans, aes(x = intervalTime, y = intMean)) + 
+          geom_line() + 
+          scale_x_datetime(breaks = date_breaks("2 hours"), labels = date_format("%H:%M")) +
           facet_grid(dayType ~ .) +
           xlab("Interval") +
           ylab("Average Number of Steps") +
