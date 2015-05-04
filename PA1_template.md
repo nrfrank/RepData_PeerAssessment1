@@ -169,7 +169,7 @@ filter(intervalMeans, intMean == max(intMean)) %>% select(intervalTime)
 ## Source: local data frame [1 x 1]
 ## 
 ##          intervalTime
-## 1 2015-03-15 08:35:00
+## 1 2015-05-04 08:35:00
 ```
 
 ## Imputing missing values
